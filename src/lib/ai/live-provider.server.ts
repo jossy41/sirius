@@ -85,20 +85,33 @@ export function createLiveProvider(): AiProvider {
       const timeout = setTimeout(() => controller.abort(), 45000);
       try {
         const url = cfg.baseUrl.replace(/\/$/, "") + "/chat/completions";
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cfg.apiKey}`,
-          },
-          body: JSON.stringify({
-            model: cfg.model,
-            messages: buildMessages(req),
-            temperature: 0.3,
-            max_tokens: 1200,
-          }),
-          signal: controller.signal,
-        });
+        let res!: Response;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${cfg.apiKey}`,
+            },
+            body: JSON.stringify({
+              model: cfg.model,
+              messages: buildMessages(req),
+              temperature: 0.3,
+              max_tokens: 1200,
+            }),
+            signal: controller.signal,
+          });
+
+          if (![502, 503, 504].includes(res.status) || attempt === 2) break;
+
+          const retryAfter = Number(res.headers.get("retry-after"));
+          const delay = Number.isFinite(retryAfter) && retryAfter >= 0
+            ? Math.min(retryAfter * 1000, 5000)
+            : 1000 * (attempt + 1);
+
+          await res.body?.cancel().catch(() => {});
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
         if (!res.ok) {
           const text = await res.text().catch(() => "");
           return {
