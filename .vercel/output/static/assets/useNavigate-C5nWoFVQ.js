@@ -1,0 +1,1 @@
+import{D as e,i as t,w as n}from"./cn-D5ozjnNk.js";var r=e(n(),1);function i(e){let n=t();return r.useCallback(t=>n.navigate({...t,from:t.from??e?.from}),[e?.from,n])}export{i as t};

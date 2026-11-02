@@ -1,0 +1,196 @@
+//#region node_modules/.nitro/vite/services/ssr/assets/request-schema-sxsZm9wF.js
+var MODES = /* @__PURE__ */ new Set([
+	"explain",
+	"guided",
+	"compare",
+	"misconception",
+	"practice",
+	"evaluate"
+]);
+var LANGS = /* @__PURE__ */ new Set([
+	"en",
+	"am",
+	"om"
+]);
+var PREFERS = /* @__PURE__ */ new Set([
+	"auto",
+	"offline",
+	"live",
+	"mock"
+]);
+var LIMITS = {
+	maxMessageLen: 4e3,
+	maxHistoryTurns: 8,
+	maxHistoryContentLen: 1500,
+	maxChunks: 12,
+	maxChunkChars: 900,
+	maxTotalContextChars: 8e3,
+	maxIdLen: 128
+};
+function isNonEmptyString(v, max) {
+	return typeof v === "string" && v.length > 0 && v.length <= max;
+}
+function optionalString(v, max) {
+	if (v == null || v === "") return null;
+	if (typeof v !== "string") return null;
+	return v.slice(0, max);
+}
+function validPage(n) {
+	if (n == null) return null;
+	if (typeof n !== "number" || !Number.isFinite(n) || n < 1 || n > 1e4) return null;
+	return Math.floor(n);
+}
+function validateTutorRequest(raw) {
+	if (!raw || typeof raw !== "object") return {
+		ok: false,
+		error: "Request body must be a JSON object.",
+		code: "invalid_body"
+	};
+	const body = raw;
+	if (typeof body.userMessage !== "string" || !body.userMessage.trim()) return {
+		ok: false,
+		error: "A message is required.",
+		code: "missing_message"
+	};
+	if (body.userMessage.length > LIMITS.maxMessageLen) return {
+		ok: false,
+		error: `Message is too long (max ${LIMITS.maxMessageLen} characters).`,
+		code: "message_too_long"
+	};
+	const mode = body.mode ?? "explain";
+	if (!MODES.has(mode)) return {
+		ok: false,
+		error: "Invalid learning mode.",
+		code: "invalid_mode"
+	};
+	const language = body.language ?? "en";
+	if (!LANGS.has(language)) return {
+		ok: false,
+		error: "Unsupported language code.",
+		code: "invalid_language"
+	};
+	const prefer = body.prefer ?? "offline";
+	if (!PREFERS.has(prefer)) return {
+		ok: false,
+		error: "Invalid provider preference.",
+		code: "invalid_prefer"
+	};
+	const externalConsentClaim = body.externalConsent === true || body.externalConsentClaim === true;
+	const consentToken = typeof body.consentToken === "string" && body.consentToken.length > 0 && body.consentToken.length < 2048 ? body.consentToken : null;
+	const history = [];
+	if (body.history != null) {
+		if (!Array.isArray(body.history)) return {
+			ok: false,
+			error: "history must be an array.",
+			code: "invalid_history"
+		};
+		if (body.history.length > LIMITS.maxHistoryTurns) return {
+			ok: false,
+			error: `Too many history turns (max ${LIMITS.maxHistoryTurns}).`,
+			code: "history_too_long"
+		};
+		for (const h of body.history) {
+			if (!h || typeof h !== "object") return {
+				ok: false,
+				error: "Invalid history entry.",
+				code: "invalid_history"
+			};
+			const role = h.role;
+			const content = h.content;
+			if (role !== "user" && role !== "assistant") return {
+				ok: false,
+				error: "Invalid history role.",
+				code: "invalid_history"
+			};
+			if (typeof content !== "string") return {
+				ok: false,
+				error: "Invalid history content.",
+				code: "invalid_history"
+			};
+			history.push({
+				role,
+				content: content.slice(0, LIMITS.maxHistoryContentLen)
+			});
+		}
+	}
+	const sourceChunks = [];
+	let totalChars = 0;
+	if (body.sourceChunks != null) {
+		if (!Array.isArray(body.sourceChunks)) return {
+			ok: false,
+			error: "sourceChunks must be an array.",
+			code: "invalid_chunks"
+		};
+		if (body.sourceChunks.length > LIMITS.maxChunks) return {
+			ok: false,
+			error: `Too many document chunks (max ${LIMITS.maxChunks}).`,
+			code: "too_many_chunks"
+		};
+		for (const c of body.sourceChunks) {
+			if (!c || typeof c !== "object") return {
+				ok: false,
+				error: "Invalid chunk.",
+				code: "invalid_chunks"
+			};
+			const rec = c;
+			if (!isNonEmptyString(rec.documentId, LIMITS.maxIdLen)) return {
+				ok: false,
+				error: "Chunk missing documentId.",
+				code: "invalid_chunks"
+			};
+			if (!isNonEmptyString(rec.chunkId, LIMITS.maxIdLen)) return {
+				ok: false,
+				error: "Chunk missing chunkId.",
+				code: "invalid_chunks"
+			};
+			if (typeof rec.text !== "string" || !rec.text.trim()) return {
+				ok: false,
+				error: "Chunk text required.",
+				code: "invalid_chunks"
+			};
+			const pageStart = validPage(rec.pageStart);
+			const pageEnd = validPage(rec.pageEnd);
+			if (pageStart != null && pageEnd != null && pageEnd < pageStart) return {
+				ok: false,
+				error: "Invalid page range.",
+				code: "invalid_pages"
+			};
+			const text = rec.text.slice(0, LIMITS.maxChunkChars);
+			totalChars += text.length;
+			if (totalChars > LIMITS.maxTotalContextChars) return {
+				ok: false,
+				error: "Total source context is too large.",
+				code: "context_too_large"
+			};
+			sourceChunks.push({
+				documentId: rec.documentId,
+				documentTitle: optionalString(rec.documentTitle, 200),
+				chunkId: rec.chunkId,
+				pageStart,
+				pageEnd,
+				text
+			});
+		}
+	}
+	return {
+		ok: true,
+		value: {
+			mode,
+			userMessage: body.userMessage.trim().slice(0, LIMITS.maxMessageLen),
+			language,
+			prefer,
+			externalConsentClaim,
+			consentToken,
+			topicLabel: optionalString(body.topicLabel, 200),
+			objectiveId: optionalString(body.objectiveId, LIMITS.maxIdLen),
+			objectiveStatement: optionalString(body.objectiveStatement, 500),
+			misconceptionTitle: optionalString(body.misconceptionTitle, 200),
+			misconceptionDescription: optionalString(body.misconceptionDescription, 500),
+			documentId: optionalString(body.documentId, LIMITS.maxIdLen),
+			history,
+			sourceChunks
+		}
+	};
+}
+//#endregion
+export { validateTutorRequest as t };

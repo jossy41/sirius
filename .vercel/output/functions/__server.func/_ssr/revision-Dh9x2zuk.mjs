@@ -1,0 +1,606 @@
+import { i as __toESM } from "../_runtime.mjs";
+import { $ as putRevisionSession, E as listKnowledgeGraphs, M as listRevisionHistory, N as listRevisionSchedules, O as listMasteryAssessments, Q as putRevisionSchedule, R as putDailyRevisionPlan, Z as putRevisionHistory, k as listMisconceptions, v as listDailyRevisionPlans, x as listExamDefinitions } from "./cn-Ccejyh36.mjs";
+import { n as require_react } from "../_libs/@radix-ui/react-compose-refs+[...].mjs";
+import { T as require_jsx_runtime, b as Link, x as useNavigate } from "../_libs/@tanstack/react-router+[...].mjs";
+import { f as Button } from "./router-03i3X1Nd.mjs";
+import { r as Panel } from "./panel-B6qeBfmK.mjs";
+import { n as createRevisionSession } from "./session-Bvzbym_h.mjs";
+import { i as postponeSchedule, n as isDue, o as seedScheduleFromMastery, r as isOverdue } from "./scheduler-DxfjDz-T.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/revision-Dh9x2zuk.js
+var import_react = /* @__PURE__ */ __toESM(require_react());
+var import_jsx_runtime = require_jsx_runtime();
+function rid(prefix) {
+	if (typeof crypto !== "undefined" && crypto.randomUUID) return `${prefix}_${crypto.randomUUID()}`;
+	return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+function planDateString(d = /* @__PURE__ */ new Date()) {
+	return d.toISOString().slice(0, 10);
+}
+var TYPE_PRIORITY = {
+	misconception_remediation: 1,
+	prerequisite_repair: 2,
+	practice: 3,
+	reassessment: 4,
+	initial_review: 5,
+	maintenance: 6
+};
+function buildDailyPlan(input) {
+	const now = input.now ?? /* @__PURE__ */ new Date();
+	const planDate = planDateString(now);
+	const maxItems = input.maxItems ?? 8;
+	const masteryByKey = new Map(input.mastery.map((m) => [`${m.packId ?? "local"}:${m.objectiveId}`, m]));
+	const scheduleMap = new Map(input.schedules.map((s) => [s.id, s]));
+	for (const m of input.mastery) {
+		const sid = `rs_${m.packId ?? "local"}__${m.objectiveId}`;
+		if (!scheduleMap.has(sid)) {
+			if (m.state === "not_started" || m.state === "needs_review" || m.state === "practising" || m.hasPersistentMisconception) {
+				const seeded = seedScheduleFromMastery({
+					mastery: m,
+					topicLabel: null,
+					misconceptions: input.misconceptions,
+					now: now.toISOString()
+				});
+				scheduleMap.set(seeded.id, seeded);
+			}
+		}
+	}
+	const items = [];
+	const seen = /* @__PURE__ */ new Set();
+	for (const schedule of scheduleMap.values()) {
+		if (schedule.postponedUntil && new Date(schedule.postponedUntil) > now) continue;
+		const key = `${schedule.packId ?? ""}:${schedule.objectiveId}`;
+		if (seen.has(key)) continue;
+		const overdue = isOverdue(schedule, now);
+		const due = isDue(schedule, now);
+		const m = masteryByKey.get(`${schedule.packId ?? "local"}:${schedule.objectiveId}`);
+		let urgency = "upcoming";
+		let include = false;
+		if (overdue) {
+			urgency = "overdue";
+			include = true;
+		} else if (due) {
+			urgency = "due_today";
+			include = true;
+		} else if (schedule.hasOpenMisconception || m?.hasPersistentMisconception) {
+			urgency = "attention";
+			include = true;
+		} else if (m?.state === "needs_review") {
+			urgency = "attention";
+			include = true;
+		}
+		if (!include) continue;
+		seen.add(key);
+		const priority = (TYPE_PRIORITY[schedule.activityType] ?? 9) + (overdue ? 0 : due ? 1 : 2) + (schedule.hasOpenMisconception ? 0 : 1);
+		let reason = schedule.reason;
+		if (overdue) reason = `Overdue review: ${schedule.reason}`;
+		items.push({
+			id: rid("dpi"),
+			scheduleId: schedule.id,
+			objectiveId: schedule.objectiveId,
+			packId: schedule.packId,
+			topicLabel: schedule.topicLabel,
+			activityType: schedule.activityType,
+			priority,
+			urgency,
+			reason,
+			estimatedMinutes: schedule.activityType === "misconception_remediation" ? 15 : schedule.activityType === "maintenance" ? 8 : 10,
+			documentId: null,
+			misconceptionId: null
+		});
+	}
+	for (const mc of input.misconceptions) {
+		if (mc.status !== "confirmed" && mc.status !== "needs_reassessment") continue;
+		const key = `mc:${mc.id}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		items.push({
+			id: rid("dpi"),
+			scheduleId: `mc_sched_${mc.id}`,
+			objectiveId: mc.topicLabel ? `topic:${mc.topicLabel}` : mc.concept,
+			packId: null,
+			topicLabel: mc.topicLabel,
+			activityType: "misconception_remediation",
+			priority: 1,
+			urgency: "attention",
+			reason: `Confirmed pattern “${mc.title}” still needs targeted clarification.`,
+			estimatedMinutes: 15,
+			documentId: mc.documentId,
+			misconceptionId: mc.id
+		});
+	}
+	items.sort((a, b) => a.priority - b.priority || a.objectiveId.localeCompare(b.objectiveId));
+	if (input.existingPlan && input.existingPlan.planDate === planDate) {
+		const postponedIds = new Set(input.schedules.filter((s) => s.postponedUntil && new Date(s.postponedUntil) > now).map((s) => s.id));
+		const filtered = items.filter((i) => !postponedIds.has(i.scheduleId));
+		return {
+			id: input.existingPlan.id,
+			planDate,
+			items: filtered.slice(0, maxItems),
+			createdAt: input.existingPlan.createdAt,
+			updatedAt: now.toISOString()
+		};
+	}
+	return {
+		id: rid("drp"),
+		planDate,
+		items: items.slice(0, maxItems),
+		createdAt: now.toISOString(),
+		updatedAt: now.toISOString()
+	};
+}
+function buildStudyPlan(input) {
+	const items = [];
+	let minutes = 0;
+	const budget = Math.max(15, Math.min(240, input.preferences.minutesPerDay || 45));
+	const order = input.preferences.priorities.length ? input.preferences.priorities : [
+		"misconceptions",
+		"revision",
+		"practice",
+		"exams"
+	];
+	const push = (item) => {
+		if (minutes + item.estimatedMinutes > budget && items.length > 0) return;
+		items.push(item);
+		minutes += item.estimatedMinutes;
+	};
+	for (const p of order) {
+		if (minutes >= budget) break;
+		if (p === "misconceptions") for (const m of input.misconceptionTitles.slice(0, 3)) push({
+			id: `mc_${m.id}`,
+			title: m.title,
+			kind: "misconception",
+			estimatedMinutes: 15,
+			reason: "Address a possible misunderstanding before it hardens.",
+			objectiveId: m.objectiveId,
+			href: "/misconceptions"
+		});
+		if (p === "revision") for (const r of input.dueRevisionTitles.slice(0, 4)) push({
+			id: `rev_${r.id}`,
+			title: r.title,
+			kind: "revision",
+			estimatedMinutes: 12,
+			reason: "Due for review based on your recent schedule.",
+			objectiveId: r.objectiveId,
+			href: "/revision"
+		});
+		if (p === "practice") for (const q of input.practiceHints.slice(0, 4)) push({
+			id: `pr_${q.id}`,
+			title: q.title,
+			kind: "practice",
+			estimatedMinutes: 10,
+			reason: "Practice to strengthen understanding.",
+			objectiveId: q.objectiveId,
+			href: "/practice"
+		});
+		if (p === "exams") for (const e of (input.examPrep ?? []).slice(0, 2)) push({
+			id: `ex_${e.id}`,
+			title: e.title,
+			kind: "exam_prep",
+			estimatedMinutes: 20,
+			reason: "Practice assessment preparation.",
+			objectiveId: null,
+			href: "/exams"
+		});
+	}
+	return {
+		date: input.date,
+		items,
+		totalMinutes: minutes,
+		generatedAt: (/* @__PURE__ */ new Date()).toISOString()
+	};
+}
+function RevisionPage() {
+	const navigate = useNavigate();
+	const [busy, setBusy] = (0, import_react.useState)(true);
+	const [error, setError] = (0, import_react.useState)(null);
+	const [plan, setPlan] = (0, import_react.useState)(null);
+	const [studyPlan, setStudyPlan] = (0, import_react.useState)(null);
+	const [misconceptionRows, setMisconceptionRows] = (0, import_react.useState)([]);
+	const [examHints, setExamHints] = (0, import_react.useState)([]);
+	const [budget, setBudget] = (0, import_react.useState)(45);
+	const [schedules, setSchedules] = (0, import_react.useState)([]);
+	const [_history, setHistory] = (0, import_react.useState)([]);
+	const [_mastery, setMastery] = (0, import_react.useState)([]);
+	const refresh = (0, import_react.useCallback)(async () => {
+		setBusy(true);
+		setError(null);
+		try {
+			const [sched, mast, mcs, hist, plans, graphs] = await Promise.all([
+				listRevisionSchedules(),
+				listMasteryAssessments(),
+				listMisconceptions(),
+				listRevisionHistory(),
+				listDailyRevisionPlans(),
+				listKnowledgeGraphs()
+			]);
+			setSchedules(sched);
+			setMisconceptionRows(mcs.filter((m) => m.status !== "resolved").map((m) => ({
+				id: m.id,
+				title: m.title || m.concept || "Learning difficulty",
+				status: m.status || "suspected",
+				objectiveId: null
+			})));
+			setMastery(mast);
+			setHistory(hist);
+			const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+			const next = buildDailyPlan({
+				schedules: sched,
+				mastery: mast,
+				misconceptions: mcs,
+				graphs,
+				existingPlan: plans.find((p) => p.planDate === today) ?? null
+			});
+			for (const item of next.items) if (!sched.find((x) => x.id === item.scheduleId) && item.scheduleId.startsWith("rs_")) {
+				const m = mast.find((x) => x.objectiveId === item.objectiveId && (x.packId ?? null) === (item.packId ?? null));
+				if (m) {
+					const { seedScheduleFromMastery } = await import("./scheduler-DxfjDz-T.mjs").then((n) => n.a).then((n) => n.a);
+					const seeded = seedScheduleFromMastery({
+						mastery: m,
+						topicLabel: item.topicLabel,
+						misconceptions: mcs
+					});
+					await putRevisionSchedule(seeded);
+				}
+			}
+			await putDailyRevisionPlan(next);
+			setPlan(next);
+			setSchedules(await listRevisionSchedules());
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "Could not load revision plan.");
+		} finally {
+			setBusy(false);
+		}
+	}, []);
+	(0, import_react.useEffect)(() => {
+		refresh();
+	}, [refresh]);
+	async function startItem(item) {
+		const session = createRevisionSession({
+			planItem: item,
+			documentId: item.documentId
+		});
+		await putRevisionSession(session);
+		navigate({
+			to: "/revision/session/$sessionId",
+			params: { sessionId: session.id }
+		});
+	}
+	async function postponeItem(item) {
+		const sched = schedules.find((s) => s.id === item.scheduleId);
+		if (sched) {
+			const next = postponeSchedule(sched, 1);
+			await putRevisionSchedule(next);
+			await putRevisionHistory({
+				id: `rh_${Date.now()}`,
+				scheduleId: sched.id,
+				objectiveId: sched.objectiveId,
+				packId: sched.packId,
+				topicLabel: sched.topicLabel,
+				activityType: sched.activityType,
+				reviewedAt: (/* @__PURE__ */ new Date()).toISOString(),
+				wasOverdue: isOverdue(sched),
+				previousScheduledAt: sched.nextReviewAt,
+				nextScheduledAt: next.nextReviewAt,
+				outcome: "postponed",
+				evaluationCorrectness: null,
+				evaluationId: null,
+				attemptId: null,
+				sessionId: null,
+				note: "Postponed by learner"
+			});
+		}
+		await refresh();
+	}
+	async function skipItem(item) {
+		const sched = schedules.find((s) => s.id === item.scheduleId);
+		if (sched) {
+			const next = postponeSchedule(sched, 2);
+			await putRevisionSchedule(next);
+			await putRevisionHistory({
+				id: `rh_${Date.now()}`,
+				scheduleId: sched.id,
+				objectiveId: sched.objectiveId,
+				packId: sched.packId,
+				topicLabel: sched.topicLabel,
+				activityType: sched.activityType,
+				reviewedAt: (/* @__PURE__ */ new Date()).toISOString(),
+				wasOverdue: isOverdue(sched),
+				previousScheduledAt: sched.nextReviewAt,
+				nextScheduledAt: next.nextReviewAt,
+				outcome: "skipped",
+				evaluationCorrectness: null,
+				evaluationId: null,
+				attemptId: null,
+				sessionId: null,
+				note: "Skipped by learner"
+			});
+		}
+		await refresh();
+	}
+	const overdue = schedules.filter((s) => isOverdue(s));
+	const upcoming = schedules.filter((s) => !isOverdue(s) && new Date(s.nextReviewAt) > /* @__PURE__ */ new Date()).slice(0, 5);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "mx-auto flex max-w-2xl flex-col gap-6 pb-24 md:pb-8",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
+				className: "space-y-2",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h1", {
+						className: "font-serif text-3xl leading-tight text-ink md:text-4xl",
+						children: "Revision"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-pretty text-muted",
+						children: "A practical plan for what to revisit today, based on your local practice evidence — not a fixed timetable for every learner."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "flex flex-wrap gap-2",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+								type: "button",
+								variant: "secondary",
+								disabled: busy,
+								onClick: () => void refresh(),
+								children: busy ? "Updating…" : "Refresh plan"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+								to: "/revision/history",
+								className: "inline-flex h-9 items-center rounded-md border border-line px-3 text-sm font-medium",
+								children: "History"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+								to: "/progress",
+								className: "inline-flex h-9 items-center rounded-md border border-line px-3 text-sm font-medium",
+								children: "Progress"
+							})
+						]
+					})
+				]
+			}),
+			error && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Panel, {
+				className: "border-rose-500/40 bg-rose-500/5 text-sm",
+				children: error
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Panel, {
+				className: "space-y-3",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+					className: "font-serif text-xl text-ink",
+					children: "Today's plan"
+				}), !plan || plan.items.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-sm text-muted",
+					children: "Nothing urgent is due. Keep practising topics you care about, or check Progress for gaps."
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+					className: "space-y-3",
+					children: plan.items.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+						className: "rounded-lg border border-line p-3",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "flex flex-wrap items-start justify-between gap-2",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "font-medium text-ink",
+									children: item.topicLabel || item.objectiveId
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "text-xs text-muted",
+									children: [
+										item.activityType.replace(/_/g, " "),
+										" · ",
+										item.urgency.replace(/_/g, " "),
+										" · ~",
+										item.estimatedMinutes,
+										" min",
+										item.packId ? ` · ${item.packId}` : ""
+									]
+								})] })
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "mt-2 text-sm text-muted",
+								children: item.reason
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "mt-3 flex flex-wrap gap-2",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										type: "button",
+										variant: "primary",
+										onClick: () => void startItem(item),
+										children: "Start"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										type: "button",
+										variant: "ghost",
+										onClick: () => void postponeItem(item),
+										children: "Postpone"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+										type: "button",
+										variant: "ghost",
+										onClick: () => void skipItem(item),
+										children: "Skip"
+									})
+								]
+							})
+						]
+					}, item.id))
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Panel, {
+				className: "space-y-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+					className: "font-serif text-xl text-ink",
+					children: "Overdue"
+				}), overdue.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-sm text-muted",
+					children: "No overdue reviews."
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+					className: "space-y-1 text-sm",
+					children: overdue.slice(0, 6).map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+						className: "text-muted",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "text-ink",
+								children: s.topicLabel || s.objectiveId
+							}),
+							" — due",
+							" ",
+							s.nextReviewAt.slice(0, 10)
+						]
+					}, s.id))
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Panel, {
+				className: "space-y-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+					className: "font-serif text-xl text-ink",
+					children: "Upcoming"
+				}), upcoming.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "text-sm text-muted",
+					children: "No upcoming reviews scheduled yet."
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("ul", {
+					className: "space-y-1 text-sm",
+					children: upcoming.map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+						className: "text-muted",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "text-ink",
+								children: s.topicLabel || s.objectiveId
+							}),
+							" —",
+							" ",
+							s.nextReviewAt.slice(0, 10),
+							" · ",
+							s.intervalDays,
+							"d interval"
+						]
+					}, s.id))
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Panel, {
+				className: "space-y-2",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+					className: "font-serif text-xl text-ink",
+					children: "How scheduling works"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ul", {
+					className: "list-inside list-disc space-y-1 text-sm text-muted",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "Successful reviews gradually space out the next check." }),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "Difficulty or open misconceptions bring the next review sooner." }),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "You can postpone or skip — the plan will not loop the same item endlessly." }),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "Scheduling is deterministic and local; it is not a measured memory model." })
+					]
+				})]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Panel, {
+				className: "space-y-3",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", {
+						className: "font-serif text-xl text-ink",
+						children: "Today's study plan"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "text-sm text-muted",
+						children: "Prioritized from misconceptions, due revision, and practice. Adjust your time budget and regenerate."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+						className: "flex items-center gap-2 text-sm text-muted",
+						children: ["Minutes available", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+							type: "number",
+							min: 15,
+							max: 240,
+							value: budget,
+							onChange: (e) => setBudget(Number(e.target.value) || 45),
+							className: "w-20 rounded border border-line bg-surface px-2 py-1 text-ink"
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Button, {
+						type: "button",
+						variant: "secondary",
+						onClick: () => {
+							(async () => {
+								try {
+									const exams = await listExamDefinitions();
+									setExamHints(exams.slice(0, 3).map((e) => ({
+										id: e.id,
+										title: e.title || e.name || "Practice assessment"
+									})));
+								} catch {
+									setExamHints([]);
+								}
+								const sp = buildStudyPlan({
+									date: (/* @__PURE__ */ new Date()).toISOString().slice(0, 10),
+									preferences: {
+										subjectLabels: [],
+										topicLabels: [],
+										minutesPerDay: budget,
+										targetDate: null,
+										priorities: [
+											"misconceptions",
+											"revision",
+											"practice",
+											"exams"
+										]
+									},
+									dueRevisionTitles: schedules.filter((s) => {
+										return isOverdue(s) || new Date(s.nextReviewAt).getTime() <= Date.now() + 1728e5;
+									}).slice(0, 6).map((s) => ({
+										id: s.id,
+										title: s.topicLabel || s.objectiveId || "Revision item",
+										objectiveId: s.objectiveId
+									})),
+									misconceptionTitles: misconceptionRows.filter((m) => m.status !== "resolved").map((m) => ({
+										id: m.id,
+										title: m.title,
+										objectiveId: m.objectiveId
+									})),
+									examPrep: examHints,
+									practiceHints: (_mastery || []).filter((m) => m.state === "needs_review" || m.state === "developing").slice(0, 5).map((m) => ({
+										id: m.id,
+										title: m.objectiveId,
+										objectiveId: m.objectiveId
+									}))
+								});
+								setStudyPlan(sp);
+							})();
+						},
+						children: "Generate plan"
+					}),
+					studyPlan && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ul", {
+						className: "space-y-2 text-sm",
+						children: [studyPlan.items.map((item) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+							className: "rounded border border-line p-2",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "font-medium text-ink",
+									children: item.title
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+									className: "text-xs text-muted",
+									children: [
+										item.reason,
+										" · ~",
+										item.estimatedMinutes,
+										" min"
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Link, {
+									to: item.href,
+									className: "text-xs text-primary underline",
+									children: "Open"
+								})
+							]
+						}, item.id)), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", {
+							className: "text-xs text-muted",
+							children: [
+								"Total ~",
+								studyPlan.totalMinutes,
+								" minutes"
+							]
+						})]
+					})
+				]
+			})
+		]
+	});
+}
+var SplitComponent = RevisionPage;
+//#endregion
+export { SplitComponent as component };

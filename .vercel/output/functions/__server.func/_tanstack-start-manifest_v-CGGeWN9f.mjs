@@ -1,0 +1,173 @@
+//#region node_modules/.nitro/vite/services/ssr/assets/_tanstack-start-manifest_v-CGGeWN9f.js
+var tsrStartManifest = () => ({ routes: {
+	__root__: {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/__root.tsx",
+		children: [
+			"/",
+			"/curriculum",
+			"/desk",
+			"/exams",
+			"/library",
+			"/misconceptions",
+			"/practice",
+			"/progress",
+			"/revision",
+			"/tutor",
+			"/you"
+		],
+		preloads: [
+			"/assets/index-BrJiNM4_.js",
+			"/assets/cn-D5ozjnNk.js",
+			"/assets/useSearch-3WqTB91E.js",
+			"/assets/link--vH7ee7R.js",
+			"/assets/useMatch-t9tNEIP3.js",
+			"/assets/lazyRouteComponent-QmkPhC0w.js",
+			"/assets/pack-B_Vklz2n.js",
+			"/assets/errors-YB3II5NE.js",
+			"/assets/profile-xXBMoa1A.js",
+			"/assets/model-DRFlzpIw.js",
+			"/assets/database-CQDUhxrb.js",
+			"/assets/preload-helper-BLdHbfdN.js"
+		],
+		scripts: [{ attrs: {
+			type: "module",
+			async: !0,
+			src: "/assets/index-BrJiNM4_.js"
+		} }]
+	},
+	"/": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/index.tsx",
+		children: void 0,
+		preloads: [
+			"/assets/routes-LZ4cpx7Q.js",
+			"/assets/panel-R68YDQui.js",
+			"/assets/env-CNCkYBPG.js"
+		]
+	},
+	"/curriculum": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/curriculum.tsx",
+		children: ["/curriculum/$packId"],
+		preloads: ["/assets/curriculum-DZ18nu39.js", "/assets/panel-R68YDQui.js"]
+	},
+	"/desk": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/desk.tsx",
+		children: void 0,
+		preloads: [
+			"/assets/desk-Dsvuypfi.js",
+			"/assets/panel-R68YDQui.js",
+			"/assets/field-DP5of-MI.js"
+		]
+	},
+	"/exams": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/exams.tsx",
+		children: ["/exams/$examId", "/exams/results/$examId"],
+		preloads: [
+			"/assets/exams-o4R980c_.js",
+			"/assets/useNavigate-C5nWoFVQ.js",
+			"/assets/panel-R68YDQui.js",
+			"/assets/field-DP5of-MI.js",
+			"/assets/engine-7W-ZBMrK.js"
+		]
+	},
+	"/library": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/library.tsx",
+		children: ["/library/$documentId"],
+		preloads: ["/assets/library-BlMj-9NW.js", "/assets/panel-R68YDQui.js"]
+	},
+	"/misconceptions": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/misconceptions.tsx",
+		children: void 0,
+		preloads: ["/assets/misconceptions-XEV54wta.js", "/assets/panel-R68YDQui.js"]
+	},
+	"/practice": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/practice.tsx",
+		children: void 0,
+		preloads: [
+			"/assets/practice-BYa33_cs.js",
+			"/assets/panel-R68YDQui.js",
+			"/assets/field-DP5of-MI.js",
+			"/assets/engine-dQaDy4XU.js"
+		]
+	},
+	"/progress": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/progress.tsx",
+		children: void 0,
+		preloads: [
+			"/assets/progress-C6DrCklU.js",
+			"/assets/useNavigate-C5nWoFVQ.js",
+			"/assets/panel-R68YDQui.js",
+			"/assets/session-C8zTq8ki.js"
+		]
+	},
+	"/revision": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/revision.tsx",
+		children: ["/revision/history", "/revision/session/$sessionId"],
+		preloads: [
+			"/assets/revision-CD1_QKKD.js",
+			"/assets/useNavigate-C5nWoFVQ.js",
+			"/assets/scheduler-skBrdsC6.js",
+			"/assets/panel-R68YDQui.js",
+			"/assets/session-C8zTq8ki.js"
+		]
+	},
+	"/tutor": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/tutor.tsx",
+		children: void 0,
+		preloads: [
+			"/assets/tutor-B-BfVr0-.js",
+			"/assets/panel-R68YDQui.js",
+			"/assets/field-DP5of-MI.js"
+		]
+	},
+	"/you": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/you.tsx",
+		children: void 0,
+		preloads: [
+			"/assets/you-DRo6hWWF.js",
+			"/assets/panel-R68YDQui.js",
+			"/assets/field-DP5of-MI.js",
+			"/assets/env-CNCkYBPG.js"
+		]
+	},
+	"/curriculum/$packId": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/curriculum.$packId.tsx",
+		children: void 0,
+		preloads: ["/assets/curriculum._packId-Bq99GERN.js"]
+	},
+	"/exams/$examId": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/exams/$examId.tsx",
+		children: void 0,
+		preloads: [
+			"/assets/_examId-BWNxOHVp.js",
+			"/assets/useParams-BwUUozsX.js",
+			"/assets/engine-dQaDy4XU.js"
+		]
+	},
+	"/library/$documentId": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/library.$documentId.tsx",
+		children: void 0,
+		preloads: ["/assets/library._documentId-DSbJKeKY.js", "/assets/field-DP5of-MI.js"]
+	},
+	"/revision/history": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/revision/history.tsx",
+		children: void 0,
+		preloads: ["/assets/history-Cf3BTOjW.js"]
+	},
+	"/exams/results/$examId": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/exams/results/$examId.tsx",
+		children: void 0,
+		preloads: ["/assets/_examId-Bmx0Azcu.js", "/assets/useParams-BwUUozsX.js"]
+	},
+	"/revision/session/$sessionId": {
+		filePath: "/data/data/com.termux/files/home/Sirius-M18.2/src/routes/revision/session.$sessionId.tsx",
+		children: void 0,
+		preloads: [
+			"/assets/session._sessionId-6VMYzTMI.js",
+			"/assets/useParams-BwUUozsX.js",
+			"/assets/field-DP5of-MI.js",
+			"/assets/engine-dQaDy4XU.js"
+		]
+	}
+} });
+//#endregion
+export { tsrStartManifest };

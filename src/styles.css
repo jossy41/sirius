@@ -1,0 +1,71 @@
+@import "tailwindcss";
+@import "@fontsource-variable/source-sans-3";
+@import "@fontsource-variable/fraunces";
+
+/* --color-primary is duplicated as theme-color in src/routes/__root.tsx */
+@theme {
+  --font-sans: "Source Sans 3 Variable", "Segoe UI", sans-serif;
+  --font-serif: "Fraunces Variable", Georgia, serif;
+
+  --color-paper: #f3efe6;
+  --color-surface: #fffcf6;
+  --color-ink: #1c1914;
+  --color-muted: #504a43;
+  --color-line: #ddd4c6;
+  --color-primary: #1e4a38;
+  --color-primary-fg: #f6f3ec;
+  --color-danger: #8c2f2a;
+  --color-danger-fg: #fff8f6;
+
+  --shadow-panel:
+    0 0 0 1px rgb(28 25 20 / 0.06), 0 1px 2px -1px rgb(28 25 20 / 0.06),
+    0 2px 4px 0 rgb(28 25 20 / 0.04);
+}
+
+@utility pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+@utility pb-nav {
+  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

@@ -1,0 +1,36 @@
+//#region node_modules/.nitro/vite/services/ssr/assets/session-Bvzbym_h.js
+function rid(prefix) {
+	if (typeof crypto !== "undefined" && crypto.randomUUID) return `${prefix}_${crypto.randomUUID()}`;
+	return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+function createRevisionSession(input) {
+	const now = (/* @__PURE__ */ new Date()).toISOString();
+	return {
+		id: rid("rvs"),
+		planItemId: input.planItem.id,
+		scheduleId: input.planItem.scheduleId,
+		objectiveId: input.planItem.objectiveId,
+		packId: input.planItem.packId,
+		topicLabel: input.planItem.topicLabel,
+		activityType: input.planItem.activityType,
+		reason: input.planItem.reason,
+		documentId: input.documentId ?? input.planItem.documentId,
+		questionIds: (input.questions ?? []).map((q) => q.id),
+		status: "active",
+		startedAt: now,
+		completedAt: null,
+		lastEvaluationId: null,
+		lastCorrectness: null
+	};
+}
+function completeRevisionSession(session, result) {
+	return {
+		...session,
+		status: "completed",
+		completedAt: (/* @__PURE__ */ new Date()).toISOString(),
+		lastEvaluationId: result.evaluationId,
+		lastCorrectness: result.correctness
+	};
+}
+//#endregion
+export { createRevisionSession as n, completeRevisionSession as t };

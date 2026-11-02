@@ -1,0 +1,363 @@
+//#region node_modules/.nitro/vite/services/ssr/assets/context-Do1gh7_p.js
+function citationsFrom(req) {
+	return req.sourceChunks.slice(0, 4).map((c) => ({
+		documentId: c.documentId,
+		documentTitle: c.documentTitle,
+		chunkId: c.chunkId,
+		pageStart: c.pageStart,
+		pageEnd: c.pageEnd,
+		excerpt: c.text.slice(0, 220)
+	}));
+}
+function groundedBody(req) {
+	return req.sourceChunks.slice(0, 3).map((c, i) => {
+		const pages = c.pageStart != null ? ` (pp. ${c.pageStart}${c.pageEnd != null && c.pageEnd !== c.pageStart ? `–${c.pageEnd}` : ""})` : "";
+		return `(${i + 1}) ${c.text.slice(0, 400)}${c.text.length > 400 ? "…" : ""}${pages}`;
+	}).join("\n\n");
+}
+var offlineHeuristicProvider = {
+	kind: "offline_heuristic",
+	name: "Offline heuristic",
+	async generate(req) {
+		const citations = citationsFrom(req);
+		const hasSources = req.sourceChunks.length > 0;
+		const langNote = req.language !== "en" ? "\n\n(Note: offline mode responds in English. Live AI can be configured for other languages when a provider is available.)" : "";
+		if (req.mode === "misconception" && req.misconceptionTitle) return {
+			content: (hasSources ? `About “${req.misconceptionTitle}”:\n\nA common difficulty is treating related ideas as the same. From your materials:\n\n${groundedBody(req)}\n\nFocus on the distinction described above. This offline response is a heuristic summary, not a live AI model.` : `About “${req.misconceptionTitle}”: ${req.misconceptionDescription || "Review the related definitions carefully."}\n\nNo matching textbook excerpt was found offline. Import a relevant document or use live AI when configured.`) + langNote,
+			provider: "offline_heuristic",
+			citations,
+			isGeneralExplanation: !hasSources
+		};
+		if (req.mode === "compare") return {
+			content: (hasSources ? `Comparison using your sources:\n\n${groundedBody(req)}\n\nList similarities and differences from the passages above. Offline mode does not invent extra textbook claims.` : "No source passages were available to compare. Import documents that cover both ideas, or enable a live AI provider.") + langNote,
+			provider: "offline_heuristic",
+			citations,
+			isGeneralExplanation: !hasSources
+		};
+		if (req.mode === "guided") return {
+			content: (hasSources ? `Guided prompt (offline):\n\nBased on this material:\n${groundedBody(req)}\n\n1) What is the main idea in your own words?\n2) Which term is still unclear?\n3) Can you give one example?\n\nReply with your thoughts; offline mode will not solve everything for you at once.` : "Guided mode needs source material or a live provider. Try importing a document on this topic first.") + langNote,
+			provider: "offline_heuristic",
+			citations,
+			isGeneralExplanation: !hasSources
+		};
+		if (req.mode === "practice") return {
+			content: (hasSources ? `Practice prompt (offline, not an official exam question):\n\nUsing this passage:\n${groundedBody(req)}\n\nWrite 2–3 sentences explaining the key idea, then state one example from everyday life if possible.` : "No sources available to ground a practice prompt offline.") + langNote,
+			provider: "offline_heuristic",
+			citations,
+			isGeneralExplanation: !hasSources
+		};
+		if (hasSources) return {
+			content: `Explanation from your offline materials${req.topicLabel ? ` (${req.topicLabel})` : ""}:\n\n${groundedBody(req)}\n\nThis is a deterministic offline summary of retrieved passages, not a live AI model.${langNote}`,
+			provider: "offline_heuristic",
+			citations,
+			isGeneralExplanation: false
+		};
+		if (req.allowGeneralExplanation) return {
+			content: `No matching textbook excerpts were found for “${req.userMessage.slice(0, 80)}”. Offline mode cannot invent page citations. Import a relevant document, or configure a live AI provider for a general explanation.${langNote}`,
+			provider: "offline_heuristic",
+			citations: [],
+			isGeneralExplanation: true
+		};
+		return {
+			content: "No relevant sources were found. Import a document with selectable text, or enable a live AI provider.",
+			provider: "offline_heuristic",
+			citations: [],
+			isGeneralExplanation: true
+		};
+	}
+};
+var mockProvider = {
+	kind: "mock",
+	name: "Mock development provider",
+	async generate(req) {
+		const citations = req.sourceChunks.slice(0, 2).map((c) => ({
+			documentId: c.documentId,
+			documentTitle: c.documentTitle,
+			chunkId: c.chunkId,
+			pageStart: c.pageStart,
+			pageEnd: c.pageEnd,
+			excerpt: c.text.slice(0, 160)
+		}));
+		return {
+			content: `[MOCK AI — not a real model]\nMode: ${req.mode}\nYou asked: ${req.userMessage.slice(0, 200)}\n\nThis response is a development stub. Configure SIRIUS_AI_API_KEY and related server env vars for a live provider.\n\nSources attached: ${req.sourceChunks.length}.`,
+			provider: "mock",
+			citations,
+			isGeneralExplanation: req.sourceChunks.length === 0,
+			model: "mock-dev"
+		};
+	}
+};
+var ETHIOPIC = /[\u1200-\u137F\u1380-\u139F\u2D80-\u2DDF]/;
+var LATIN_LETTER = /[A-Za-z\u00C0-\u024F]/;
+function detectScriptLanguage(text) {
+	if (!text || !text.trim()) return "unknown";
+	const eth = (text.match(new RegExp(ETHIOPIC.source, "g")) || []).length;
+	const latin = (text.match(new RegExp(LATIN_LETTER.source, "g")) || []).length;
+	if (eth > 0 && latin > eth * 2) return "mixed";
+	if (eth > latin) return "am";
+	if (latin > 0) return "en";
+	return "unknown";
+}
+function normalizeForSearch(text, language = "unknown") {
+	const nfc = text.normalize("NFC");
+	if (language === "am" || ETHIOPIC.test(nfc)) return nfc.replace(/\s+/g, " ").trim();
+	return nfc.toLowerCase().replace(/\s+/g, " ").trim();
+}
+function tokenizeLanguageAware(text, language = "unknown") {
+	const normalized = normalizeForSearch(text, language);
+	if (language === "am" || ETHIOPIC.test(text)) return normalized.split(/[^\u1200-\u137F\u1380-\u139FA-Za-z0-9]+/).filter((t) => t.length > 0);
+	return normalized.split(/[^a-z0-9'\u00C0-\u024F]+/i).map((t) => t.replace(/^'+|'+$/g, "")).filter((t) => t.length > 1);
+}
+function tokenize(q, language) {
+	return tokenizeLanguageAware(q, language ?? detectScriptLanguage(q));
+}
+function lexicalScore(text, terms, language) {
+	const lang = language ?? detectScriptLanguage(text);
+	const tokens = new Set(tokenizeLanguageAware(text, lang));
+	const t = text.toLowerCase();
+	let score = 0;
+	for (const w of terms) {
+		if (tokens.has(w) || t.includes(w)) score += 1;
+		if (w.length > 4 && t.includes(w.slice(0, -1))) score += .25;
+	}
+	return score;
+}
+function lexicalRetrieve(input) {
+	const lang = input.language ?? detectScriptLanguage(input.query);
+	const terms = tokenize(input.query, lang);
+	if (terms.length === 0) return [];
+	const titles = new Map(input.documents.map((d) => [d.id, d.name]));
+	return input.chunks.map((c) => {
+		return {
+			c,
+			score: lexicalScore(c.text, terms, lang)
+		};
+	}).filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, input.limit ?? 8).map((x) => ({
+		chunkId: x.c.id,
+		documentId: x.c.documentId,
+		documentTitle: titles.get(x.c.documentId) ?? null,
+		text: x.c.text,
+		pageStart: x.c.pageStart ?? null,
+		pageEnd: x.c.pageEnd ?? null,
+		score: x.score,
+		methods: ["lexical"],
+		reason: "Matched words from your question in this passage."
+	}));
+}
+/** Lightweight concept expansion — not embeddings. */
+var CONCEPT_SYNONYMS = {
+	mass: [
+		"matter",
+		"inertia",
+		"kilogram",
+		"kg"
+	],
+	weight: [
+		"gravity",
+		"newton",
+		"force",
+		"heaviness"
+	],
+	force: [
+		"newton",
+		"push",
+		"pull",
+		"acceleration"
+	],
+	energy: [
+		"joule",
+		"work",
+		"kinetic",
+		"potential"
+	],
+	water: [
+		"h2o",
+		"liquid",
+		"moisture",
+		"hydration"
+	],
+	plant: [
+		"leaf",
+		"stem",
+		"root",
+		"transpiration",
+		"wilting"
+	],
+	transpiration: [
+		"wilting",
+		"stomata",
+		"evaporation",
+		"water loss"
+	],
+	barumsa: [
+		"learning",
+		"education",
+		"study"
+	],
+	jireenya: ["life", "living"]
+};
+function expandQueryTerms(query) {
+	const base = tokenize(query);
+	const extra = [];
+	for (const t of base) for (const [concept, syns] of Object.entries(CONCEPT_SYNONYMS)) if (t === concept || syns.includes(t)) extra.push(concept, ...syns);
+	return [.../* @__PURE__ */ new Set([...base, ...extra])];
+}
+function conceptRetrieve(input) {
+	const terms = [...expandQueryTerms(input.query), ...(input.conceptHints ?? []).map((c) => c.toLowerCase())];
+	const titles = new Map(input.documents.map((d) => [d.id, d.name]));
+	return input.chunks.map((c) => ({
+		c,
+		score: lexicalScore(c.text, terms) * .9
+	})).filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, input.limit ?? 8).map((x) => ({
+		chunkId: x.c.id,
+		documentId: x.c.documentId,
+		documentTitle: titles.get(x.c.documentId) ?? null,
+		text: x.c.text,
+		pageStart: x.c.pageStart ?? null,
+		pageEnd: x.c.pageEnd ?? null,
+		score: x.score,
+		methods: ["concept_graph"],
+		reason: "Related wording or concept links matched this passage."
+	}));
+}
+function conceptHintsFromGraph(query, graph) {
+	if (!graph) return [];
+	const terms = new Set(tokenize(query));
+	const hints = [];
+	for (const c of graph.concepts) {
+		const title = c.title.toLowerCase();
+		const code = c.code.toLowerCase();
+		if ([...terms].some((t) => title.includes(t) || code.includes(t) || t.includes(code))) {
+			hints.push(c.title, c.code);
+			for (const rel of graph.conceptRelations) if (rel.fromConceptId === c.id || rel.toConceptId === c.id) {
+				const otherId = rel.fromConceptId === c.id ? rel.toConceptId : rel.fromConceptId;
+				const other = graph.concepts.find((x) => x.id === otherId);
+				if (other) hints.push(other.title);
+			}
+		}
+		if (hints.length >= 12) break;
+	}
+	return [...new Set(hints)].slice(0, 8);
+}
+function graphAssistRetrieve(input) {
+	const hints = conceptHintsFromGraph(input.query, input.graph);
+	if (hints.length === 0) return [];
+	const terms = [...tokenize(input.query), ...hints.map((h) => h.toLowerCase())];
+	const titles = new Map(input.documents.map((d) => [d.id, d.name]));
+	return input.chunks.map((c) => ({
+		c,
+		score: lexicalScore(c.text, terms) * .85
+	})).filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, input.limit ?? 6).map((x) => ({
+		chunkId: x.c.id,
+		documentId: x.c.documentId,
+		documentTitle: titles.get(x.c.documentId) ?? null,
+		text: x.c.text,
+		pageStart: x.c.pageStart ?? null,
+		pageEnd: x.c.pageEnd ?? null,
+		score: x.score,
+		methods: ["concept_graph"],
+		reason: "Related curriculum concepts suggested this passage."
+	}));
+}
+function mergeHits(lists) {
+	const map = /* @__PURE__ */ new Map();
+	for (const list of lists) for (const h of list) {
+		const key = `${h.documentId}:${h.chunkId}`;
+		const prev = map.get(key);
+		if (!prev) map.set(key, {
+			...h,
+			methods: [...h.methods]
+		});
+		else {
+			prev.score += h.score;
+			for (const m of h.methods) if (!prev.methods.includes(m)) prev.methods.push(m);
+			if (h.reason && !prev.reason.includes(h.reason.slice(0, 40))) prev.reason = `${prev.reason} ${h.reason}`;
+		}
+	}
+	return [...map.values()].sort((a, b) => b.score - a.score);
+}
+/**
+* Hybrid retrieval: lexical + concept + optional graph + optional embedding hits.
+* Embedding hits must be precomputed by a real provider — never synthetic vectors.
+*/
+function hybridRetrieve(input) {
+	const lexical = lexicalRetrieve({
+		query: input.query,
+		chunks: input.chunks,
+		documents: input.documents,
+		limit: input.limit,
+		language: input.language
+	});
+	const concept = conceptRetrieve({
+		query: input.query,
+		chunks: input.chunks,
+		documents: input.documents,
+		conceptHints: input.conceptHints,
+		limit: input.limit
+	});
+	const graph = input.graph ? graphAssistRetrieve({
+		query: input.query,
+		chunks: input.chunks,
+		documents: input.documents,
+		graph: input.graph,
+		limit: input.limit
+	}) : [];
+	const embedding = input.embeddingHits ?? [];
+	const methodsUsed = ["lexical", "concept_graph"];
+	if (embedding.length) methodsUsed.push("embedding");
+	const hits = mergeHits([
+		lexical,
+		concept,
+		graph,
+		embedding
+	]).slice(0, input.limit ?? 8).map((h) => ({
+		...h,
+		methods: h.methods.length > 1 ? ["hybrid", ...h.methods.filter((m) => m !== "hybrid")] : h.methods,
+		reason: h.methods.length > 1 ? "Combined word match and related-concept signals." : h.reason
+	}));
+	if (hits.some((h) => h.methods.length > 1) && !methodsUsed.includes("hybrid")) methodsUsed.push("hybrid");
+	return {
+		hits,
+		methodsUsed,
+		query: input.query
+	};
+}
+var MAX_CHUNKS = 6;
+var MAX_CHARS_PER_CHUNK = 900;
+function retrieveRelevantChunks(input) {
+	let pool = input.chunks;
+	if (input.documentId) pool = pool.filter((c) => c.documentId === input.documentId);
+	const result = hybridRetrieve({
+		query: input.query,
+		chunks: pool,
+		documents: input.documents,
+		limit: input.limit ?? MAX_CHUNKS
+	});
+	if (result.hits.length > 0) return result.hits.map((h) => ({
+		documentId: h.documentId,
+		documentTitle: h.documentTitle,
+		chunkId: h.chunkId,
+		pageStart: h.pageStart,
+		pageEnd: h.pageEnd,
+		text: h.text.slice(0, MAX_CHARS_PER_CHUNK).split(String.fromCharCode(0)).join("")
+	}));
+	return pool.slice(0, Math.min(3, input.limit ?? MAX_CHUNKS)).map((c) => ({
+		documentId: c.documentId,
+		documentTitle: input.documents.find((d) => d.id === c.documentId)?.name ?? null,
+		chunkId: c.id,
+		pageStart: c.pageStart ?? null,
+		pageEnd: c.pageEnd ?? null,
+		text: c.text.slice(0, MAX_CHARS_PER_CHUNK).split(String.fromCharCode(0)).join("")
+	}));
+}
+function boundHistory(messages) {
+	return messages.slice(-6).map((m) => ({
+		role: m.role,
+		content: m.content.slice(0, 1500)
+	}));
+}
+function sanitizeUntrustedText(text) {
+	return text.replace(/ignore (all )?(previous|prior|above) instructions/gi, "[filtered]").replace(/system prompt/gi, "[filtered]").split(String.fromCharCode(0)).join("").slice(0, MAX_CHARS_PER_CHUNK);
+}
+//#endregion
+export { retrieveRelevantChunks as a, offlineHeuristicProvider as i, hybridRetrieve as n, sanitizeUntrustedText as o, mockProvider as r, boundHistory as t };

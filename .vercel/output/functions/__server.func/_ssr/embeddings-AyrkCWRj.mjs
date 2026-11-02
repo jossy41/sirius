@@ -1,0 +1,24 @@
+//#region node_modules/.nitro/vite/services/ssr/assets/embeddings-AyrkCWRj.js
+function cosineSimilarity(a, b) {
+	if (a.length === 0 || b.length === 0 || a.length !== b.length) return 0;
+	let dot = 0;
+	let na = 0;
+	let nb = 0;
+	for (let i = 0; i < a.length; i++) {
+		const x = a[i];
+		const y = b[i];
+		if (!Number.isFinite(x) || !Number.isFinite(y)) return 0;
+		dot += x * y;
+		na += x * x;
+		nb += y * y;
+	}
+	if (na === 0 || nb === 0) return 0;
+	return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+function validateEmbedding(vec, expectedDim) {
+	if (!Array.isArray(vec) || vec.length === 0) return false;
+	if (expectedDim != null && vec.length !== expectedDim) return false;
+	return vec.every((n) => typeof n === "number" && Number.isFinite(n));
+}
+//#endregion
+export { validateEmbedding as n, cosineSimilarity as t };
