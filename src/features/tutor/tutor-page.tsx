@@ -174,7 +174,44 @@ export function TutorPage() {
         {(session?.messages ?? []).length === 0 && <p className="text-sm text-muted">Ask a question about a topic in your materials. Conversations stay on this device.</p>}
         {(session?.messages ?? []).map((m) => (
           <div key={m.id} className={`rounded-lg p-3 text-sm ${m.role === "user" ? "bg-primary/10 text-ink" : "border border-line bg-surface/60"}`}>
-            <p className="whitespace-pre-wrap">{m.content}</p>
+         <div className="whitespace-pre-wrap break-words leading-7">
+  {m.role === "assistant"
+    ? m.content.split("\n").map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={i} className="h-2" />;
+
+        const parts = trimmed.split(/(\*\*.*?\*\*|`.*?`)/g);
+
+        return (
+          <p key={i} className="mb-1">
+            {trimmed.startsWith("#") ? (
+              <strong className="text-base font-bold text-ink">
+                {trimmed.replace(/^#+\s*/, "")}
+              </strong>
+            ) : trimmed.startsWith("- ") || trimmed.startsWith("* ") ? (
+              <>• {parts.map((part, j) =>
+                part.startsWith("**") && part.endsWith("**") ? (
+                  <strong key={j}>{part.slice(2, -2)}</strong>
+                ) : part.startsWith("`") && part.endsWith("`") ? (
+                  <code key={j} className="rounded bg-primary/10 px-1">{part.slice(1, -1)}</code>
+                ) : part
+              )}</>
+            ) : (
+              parts.map((part, j) =>
+                part.startsWith("**") && part.endsWith("**") ? (
+                  <strong key={j}>{part.slice(2, -2)}</strong>
+                ) : part.startsWith("`") && part.endsWith("`") ? (
+                  <code key={j} className="rounded bg-primary/10 px-1">{part.slice(1, -1)}</code>
+                ) : part
+              )
+            )}
+          </p>
+        );
+      })
+    : m.content}
+</div>
+
+
             {m.role === "assistant" && <p className="mt-2 text-xs text-muted">{PROVIDER_LABEL[m.provider]}{m.isGeneralExplanation ? " · general explanation" : " · source-aware"}</p>}
             {m.citations?.length > 0 && <ul className="mt-2 space-y-1 text-xs text-muted">{m.citations.map((c, i) => <li key={i}>{c.documentTitle || c.documentId}{c.pageStart != null ? ` · pp. ${c.pageStart}${c.pageEnd != null && c.pageEnd !== c.pageStart ? `–${c.pageEnd}` : ""}` : ""}</li>)}</ul>}
           </div>
